@@ -9,6 +9,9 @@ public class XxlJobRegistry {
 
     private int id;
     private String registryGroup;
+    /**
+     * 如果registryGroup="EXECUTOR", 那么registryKey就是应用名
+     */
     private String registryKey;
     private String registryValue;
     private Date updateTime;

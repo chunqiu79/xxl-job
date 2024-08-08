@@ -9,7 +9,7 @@ import java.lang.reflect.Type;
 import java.util.List;
 
 /**
- * @author xuxueli 2020-04-11 20:56:31
+ * gson工具类
  */
 public class GsonTool {
 

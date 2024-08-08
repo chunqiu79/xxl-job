@@ -24,45 +24,48 @@ public class JobTriggerPoolHelper {
     private ThreadPoolExecutor fastTriggerPool = null;
     private ThreadPoolExecutor slowTriggerPool = null;
 
-    public void start(){
+    /**
+     * 创建2个线程池
+     */
+    public void start() {
+        // 快触发器线程池
+        // 核心线程-10, 最大线程-Max(xxl.job.triggerpool.fast.max, 200)
+        // 存活时间-60, 存活时间单位-秒
+        // 阻塞队列大小-1000, 线程名字前缀-"xxl-job, admin JobTriggerPoolHelper-fastTriggerPool-"
+        // 拒绝策略-默认拒绝策略,直接丢弃
         fastTriggerPool = new ThreadPoolExecutor(
-                10,
-                XxlJobAdminConfig.getAdminConfig().getTriggerPoolFastMax(),
-                60L,
-                TimeUnit.SECONDS,
-                new LinkedBlockingQueue<Runnable>(1000),
-                new ThreadFactory() {
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        return new Thread(r, "xxl-job, admin JobTriggerPoolHelper-fastTriggerPool-" + r.hashCode());
-                    }
-                });
+            10,
+            XxlJobAdminConfig.getAdminConfig().getTriggerPoolFastMax(),
+            60L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<Runnable>(1000),
+            r -> new Thread(r, "xxl-job, admin JobTriggerPoolHelper-fastTriggerPool-" + r.hashCode())
+        );
 
+        // 慢触发器线程池
+        // 核心线程-10, 最大线程-Max(xxl.job.triggerpool.slow.max, 200)
+        // 存活时间-60, 存活时间单位-秒
+        // 阻塞队列大小-2000, 线程名字前缀-"xxl-job, admin JobTriggerPoolHelper-slowTriggerPool-"
+        // 拒绝策略-默认拒绝策略,直接丢弃
         slowTriggerPool = new ThreadPoolExecutor(
-                10,
-                XxlJobAdminConfig.getAdminConfig().getTriggerPoolSlowMax(),
-                60L,
-                TimeUnit.SECONDS,
-                new LinkedBlockingQueue<Runnable>(2000),
-                new ThreadFactory() {
-                    @Override
-                    public Thread newThread(Runnable r) {
-                        return new Thread(r, "xxl-job, admin JobTriggerPoolHelper-slowTriggerPool-" + r.hashCode());
-                    }
-                });
+            10,
+            XxlJobAdminConfig.getAdminConfig().getTriggerPoolSlowMax(),
+            60L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(2000),
+            r -> new Thread(r, "xxl-job, admin JobTriggerPoolHelper-slowTriggerPool-" + r.hashCode())
+        );
     }
 
 
     public void stop() {
-        //triggerPool.shutdown();
         fastTriggerPool.shutdownNow();
         slowTriggerPool.shutdownNow();
         logger.info(">>>>>>>>> xxl-job trigger thread pool shutdown success.");
     }
 
 
-    // job timeout count
-    private volatile long minTim = System.currentTimeMillis()/60000;     // ms > min
+    private volatile long minTim = System.currentTimeMillis() / 60000;
     private volatile ConcurrentMap<Integer, AtomicInteger> jobTimeoutCountMap = new ConcurrentHashMap<>();
 
 
@@ -77,45 +80,42 @@ public class JobTriggerPoolHelper {
                            final String addressList) {
 
         // choose thread pool
-        ThreadPoolExecutor triggerPool_ = fastTriggerPool;
+        ThreadPoolExecutor triggerPool = fastTriggerPool;
         AtomicInteger jobTimeoutCount = jobTimeoutCountMap.get(jobId);
-        if (jobTimeoutCount!=null && jobTimeoutCount.get() > 10) {      // job-timeout 10 times in 1 min
-            triggerPool_ = slowTriggerPool;
+        if (jobTimeoutCount!=null && jobTimeoutCount.get() > 10) {
+            triggerPool = slowTriggerPool;
         }
 
         // trigger
-        triggerPool_.execute(new Runnable() {
-            @Override
-            public void run() {
+        triggerPool.execute(() -> {
 
-                long start = System.currentTimeMillis();
+            long start = System.currentTimeMillis();
 
-                try {
-                    // do trigger
-                    XxlJobTrigger.trigger(jobId, triggerType, failRetryCount, executorShardingParam, executorParam, addressList);
-                } catch (Exception e) {
-                    logger.error(e.getMessage(), e);
-                } finally {
+            try {
+                // do trigger
+                XxlJobTrigger.trigger(jobId, triggerType, failRetryCount, executorShardingParam, executorParam, addressList);
+            } catch (Exception e) {
+                logger.error(e.getMessage(), e);
+            } finally {
 
-                    // check timeout-count-map
-                    long minTim_now = System.currentTimeMillis()/60000;
-                    if (minTim != minTim_now) {
-                        minTim = minTim_now;
-                        jobTimeoutCountMap.clear();
+                // check timeout-count-map
+                long minTim_now = System.currentTimeMillis()/60000;
+                if (minTim != minTim_now) {
+                    minTim = minTim_now;
+                    jobTimeoutCountMap.clear();
+                }
+
+                // incr timeout-count-map
+                long cost = System.currentTimeMillis()-start;
+                if (cost > 500) {       // ob-timeout threshold 500ms
+                    AtomicInteger timeoutCount = jobTimeoutCountMap.putIfAbsent(jobId, new AtomicInteger(1));
+                    if (timeoutCount != null) {
+                        timeoutCount.incrementAndGet();
                     }
-
-                    // incr timeout-count-map
-                    long cost = System.currentTimeMillis()-start;
-                    if (cost > 500) {       // ob-timeout threshold 500ms
-                        AtomicInteger timeoutCount = jobTimeoutCountMap.putIfAbsent(jobId, new AtomicInteger(1));
-                        if (timeoutCount != null) {
-                            timeoutCount.incrementAndGet();
-                        }
-                    }
-
                 }
 
             }
+
         });
     }
 

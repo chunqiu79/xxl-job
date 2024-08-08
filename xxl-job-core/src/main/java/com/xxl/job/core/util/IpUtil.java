@@ -12,9 +12,7 @@ import java.util.Enumeration;
 import java.util.regex.Pattern;
 
 /**
- * ip tool
- *
- * @author xuxueli 2016-5-22 11:38:05
+ * ip工具类
  */
 public class IpUtil {
     private static final Logger logger = LoggerFactory.getLogger(IpUtil.class);

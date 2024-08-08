@@ -1,9 +1,5 @@
-#
-# XXL-JOB v2.3.0
-# Copyright (c) 2015-present, xuxueli.
-
-CREATE database if NOT EXISTS `xxl_job` default character set utf8mb4 collate utf8mb4_unicode_ci;
-use `xxl_job`;
+CREATE database if NOT EXISTS `xxl-job` default character set utf8mb4 collate utf8mb4_unicode_ci;
+use `xxl-job`;
 
 SET NAMES utf8mb4;
 
@@ -119,4 +115,3 @@ INSERT INTO `xxl_job_user`(`id`, `username`, `password`, `role`, `permission`) V
 INSERT INTO `xxl_job_lock` ( `lock_name`) VALUES ( 'schedule_lock');
 
 commit;
-

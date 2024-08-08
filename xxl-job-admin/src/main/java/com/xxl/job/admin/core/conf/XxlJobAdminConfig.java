@@ -14,9 +14,7 @@ import javax.sql.DataSource;
 import java.util.Arrays;
 
 /**
- * xxl-job config
- *
- * @author xuxueli 2017-04-28
+ * 自动配置类
  */
 
 @Component
@@ -32,6 +30,9 @@ public class XxlJobAdminConfig implements InitializingBean, DisposableBean {
 
     private XxlJobScheduler xxlJobScheduler;
 
+    /**
+     * 调度 初始化
+     */
     @Override
     public void afterPropertiesSet() throws Exception {
         adminConfig = this;
@@ -40,6 +41,9 @@ public class XxlJobAdminConfig implements InitializingBean, DisposableBean {
         xxlJobScheduler.init();
     }
 
+    /**
+     * 调度 销毁
+     */
     @Override
     public void destroy() throws Exception {
         xxlJobScheduler.destroy();
@@ -102,6 +106,9 @@ public class XxlJobAdminConfig implements InitializingBean, DisposableBean {
         return emailFrom;
     }
 
+    /**
+     * @return Math.max(200, xxl.job.triggerpool.fast.max)
+     */
     public int getTriggerPoolFastMax() {
         if (triggerPoolFastMax < 200) {
             return 200;
@@ -109,6 +116,9 @@ public class XxlJobAdminConfig implements InitializingBean, DisposableBean {
         return triggerPoolFastMax;
     }
 
+    /**
+     * @return Math.max(100, xxl.job.triggerpool.slow.max)
+     */
     public int getTriggerPoolSlowMax() {
         if (triggerPoolSlowMax < 100) {
             return 100;

@@ -32,86 +32,75 @@ public class JobCompleteHelper {
 	private ThreadPoolExecutor callbackThreadPool = null;
 	private Thread monitorThread;
 	private volatile boolean toStop = false;
-	public void start(){
-
-		// for callback
+	public void start() {
+		// 创建1个回调的线程池
+		// 核心线程-2, 最大核心线程-20
+		// 存活时间-30, 存活时间单位-秒
+		// 阻塞队列大小-3000, 线程名字前缀-"xxl-job, admin JobLosedMonitorHelper-callbackThreadPool-"
+		// 拒绝策略-使用当前线程执行&打印警告日志
 		callbackThreadPool = new ThreadPoolExecutor(
-				2,
-				20,
-				30L,
-				TimeUnit.SECONDS,
-				new LinkedBlockingQueue<Runnable>(3000),
-				new ThreadFactory() {
-					@Override
-					public Thread newThread(Runnable r) {
-						return new Thread(r, "xxl-job, admin JobLosedMonitorHelper-callbackThreadPool-" + r.hashCode());
+			2,
+			20,
+			30L,
+			TimeUnit.SECONDS,
+			new LinkedBlockingQueue<>(3000),
+			r -> new Thread(r, "xxl-job, admin JobLosedMonitorHelper-callbackThreadPool-" + r.hashCode()),
+			(r, executor) -> {
+				r.run();
+				logger.warn(">>>>>>>>>>> xxl-job, callback too fast, match threadpool rejected handler(run now).");
+			});
+
+		// 创建1个监控线程
+		monitorThread = new Thread(() -> {
+
+            // wait for JobTriggerPoolHelper-init
+            try {
+				// 睡50秒
+                TimeUnit.MILLISECONDS.sleep(50);
+            } catch (InterruptedException e) {
+                if (!toStop) {
+                    logger.error(e.getMessage(), e);
+                }
+            }
+
+            // monitor
+            while (!toStop) {
+                try {
+                    // 任务结果丢失处理：调度记录停留在 "运行中" 状态超过10min，且对应执行器心跳注册失败不在线，则将本地调度主动标记失败；
+                    Date losedTime = DateUtil.addMinutes(new Date(), -10);
+					// xxl_job_log left join xxl_job_registry log.executor_address==registry.registry_value
+                    List<Long> losedJobIds  = XxlJobAdminConfig.getAdminConfig().getXxlJobLogDao().findLostJobIds(losedTime);
+					if (losedJobIds != null && !losedJobIds.isEmpty()) {
+						for (Long logId : losedJobIds) {
+
+							XxlJobLog jobLog = new XxlJobLog();
+							jobLog.setId(logId);
+
+							jobLog.setHandleTime(new Date());
+							jobLog.setHandleCode(ReturnT.FAIL_CODE);
+							jobLog.setHandleMsg(I18nUtil.getString("joblog_lost_fail"));
+
+							XxlJobCompleter.updateHandleInfoAndFinish(jobLog);
+						}
+
 					}
-				},
-				new RejectedExecutionHandler() {
-					@Override
-					public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-						r.run();
-						logger.warn(">>>>>>>>>>> xxl-job, callback too fast, match threadpool rejected handler(run now).");
-					}
-				});
-
-
-		// for monitor
-		monitorThread = new Thread(new Runnable() {
-
-			@Override
-			public void run() {
-
-				// wait for JobTriggerPoolHelper-init
+                } catch (Exception e) {
+                    if (!toStop) {
+                        logger.error(">>>>>>>>>>> xxl-job, job fail monitor thread error:", e);
+                    }
+                }
 				try {
-					TimeUnit.MILLISECONDS.sleep(50);
-				} catch (InterruptedException e) {
+					// 睡60秒
+					TimeUnit.SECONDS.sleep(60);
+				} catch (Exception e) {
 					if (!toStop) {
 						logger.error(e.getMessage(), e);
 					}
 				}
-
-				// monitor
-				while (!toStop) {
-					try {
-						// 任务结果丢失处理：调度记录停留在 "运行中" 状态超过10min，且对应执行器心跳注册失败不在线，则将本地调度主动标记失败；
-						Date losedTime = DateUtil.addMinutes(new Date(), -10);
-						List<Long> losedJobIds  = XxlJobAdminConfig.getAdminConfig().getXxlJobLogDao().findLostJobIds(losedTime);
-
-						if (losedJobIds!=null && losedJobIds.size()>0) {
-							for (Long logId: losedJobIds) {
-
-								XxlJobLog jobLog = new XxlJobLog();
-								jobLog.setId(logId);
-
-								jobLog.setHandleTime(new Date());
-								jobLog.setHandleCode(ReturnT.FAIL_CODE);
-								jobLog.setHandleMsg( I18nUtil.getString("joblog_lost_fail") );
-
-								XxlJobCompleter.updateHandleInfoAndFinish(jobLog);
-							}
-
-						}
-					} catch (Exception e) {
-						if (!toStop) {
-							logger.error(">>>>>>>>>>> xxl-job, job fail monitor thread error:{}", e);
-						}
-					}
-
-                    try {
-                        TimeUnit.SECONDS.sleep(60);
-                    } catch (Exception e) {
-                        if (!toStop) {
-                            logger.error(e.getMessage(), e);
-                        }
-                    }
-
-                }
-
-				logger.info(">>>>>>>>>>> xxl-job, JobLosedMonitorHelper stop");
-
 			}
-		});
+            logger.info(">>>>>>>>>>> xxl-job, JobLosedMonitorHelper stop");
+        });
+		// 设置为守护线程
 		monitorThread.setDaemon(true);
 		monitorThread.setName("xxl-job, admin JobLosedMonitorHelper");
 		monitorThread.start();
