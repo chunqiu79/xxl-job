@@ -157,22 +157,19 @@ public class JobRegistryHelper {
 		if (!StringUtils.hasText(registryParam.getRegistryGroup())
 				|| !StringUtils.hasText(registryParam.getRegistryKey())
 				|| !StringUtils.hasText(registryParam.getRegistryValue())) {
-			return new ReturnT<String>(ReturnT.FAIL_CODE, "Illegal Argument.");
+			return new ReturnT<>(ReturnT.FAIL_CODE, "Illegal Argument.");
 		}
 
-		// async execute
-		registryOrRemoveThreadPool.execute(new Runnable() {
-			@Override
-			public void run() {
-				int ret = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().registryUpdate(registryParam.getRegistryGroup(), registryParam.getRegistryKey(), registryParam.getRegistryValue(), new Date());
-				if (ret < 1) {
-					XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().registrySave(registryParam.getRegistryGroup(), registryParam.getRegistryKey(), registryParam.getRegistryValue(), new Date());
-
-					// fresh
-					freshGroupRegistryInfo(registryParam);
-				}
-			}
-		});
+		// 使用线程池进行执行
+		registryOrRemoveThreadPool.execute(() -> {
+			// 修改 xxl_job_registry表 中客户端注册信息的 修改时间
+            int ret = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().registryUpdate(registryParam.getRegistryGroup(), registryParam.getRegistryKey(), registryParam.getRegistryValue(), new Date());
+            if (ret < 1) {
+				// ret < 1, 表明 xxl_job_registry表 中没有对应的客户端注册信息
+				// 在 xxl_job_registry表 中创建对应的注册信息
+                XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().registrySave(registryParam.getRegistryGroup(), registryParam.getRegistryKey(), registryParam.getRegistryValue(), new Date());
+            }
+        });
 
 		return ReturnT.SUCCESS;
 	}
@@ -183,26 +180,16 @@ public class JobRegistryHelper {
 		if (!StringUtils.hasText(registryParam.getRegistryGroup())
 				|| !StringUtils.hasText(registryParam.getRegistryKey())
 				|| !StringUtils.hasText(registryParam.getRegistryValue())) {
-			return new ReturnT<String>(ReturnT.FAIL_CODE, "Illegal Argument.");
+			return new ReturnT<>(ReturnT.FAIL_CODE, "Illegal Argument.");
 		}
 
 		// async execute
-		registryOrRemoveThreadPool.execute(new Runnable() {
-			@Override
-			public void run() {
-				int ret = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().registryDelete(registryParam.getRegistryGroup(), registryParam.getRegistryKey(), registryParam.getRegistryValue());
-				if (ret > 0) {
-					// fresh
-					freshGroupRegistryInfo(registryParam);
-				}
-			}
-		});
+		registryOrRemoveThreadPool.execute(() -> {
+			// 从 xxl_job_registry表 中删除客户端注册信息
+            XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().registryDelete(registryParam.getRegistryGroup(), registryParam.getRegistryKey(), registryParam.getRegistryValue());
+        });
 
 		return ReturnT.SUCCESS;
-	}
-
-	private void freshGroupRegistryInfo(RegistryParam registryParam){
-		// Under consideration, prevent affecting core tables
 	}
 
 

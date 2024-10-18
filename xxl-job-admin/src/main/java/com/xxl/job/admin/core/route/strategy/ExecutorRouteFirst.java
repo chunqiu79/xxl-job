@@ -7,13 +7,14 @@ import com.xxl.job.core.biz.model.TriggerParam;
 import java.util.List;
 
 /**
- * Created by xuxueli on 17/3/10.
+ * 执行器路由策略-返回执行器地址列表第1个
  */
 public class ExecutorRouteFirst extends ExecutorRouter {
 
     @Override
     public ReturnT<String> route(TriggerParam triggerParam, List<String> addressList){
-        return new ReturnT<String>(addressList.get(0));
+        // 返回执行器地址列表第1个
+        return new ReturnT<>(addressList.get(0));
     }
 
 }

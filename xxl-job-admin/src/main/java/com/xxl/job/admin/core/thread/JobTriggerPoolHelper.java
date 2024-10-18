@@ -65,7 +65,10 @@ public class JobTriggerPoolHelper {
     }
 
 
-    private volatile long minTim = System.currentTimeMillis() / 60000;
+    private volatile long minTim = System.currentTimeMillis() / 60_000;
+    /**
+     * jobTimeoutCountMap中的jobId对应的计数如果超过10次,那么就是使用 slowTriggerPool线程池 来执行任务
+      */
     private volatile ConcurrentMap<Integer, AtomicInteger> jobTimeoutCountMap = new ConcurrentHashMap<>();
 
 
@@ -79,35 +82,36 @@ public class JobTriggerPoolHelper {
                            final String executorParam,
                            final String addressList) {
 
-        // choose thread pool
+        // 默认使用 fastTriggerPool线程池,但是如果(1分钟之内)用时大于500毫秒10次以上就使用 slowTriggerPool线程池
         ThreadPoolExecutor triggerPool = fastTriggerPool;
         AtomicInteger jobTimeoutCount = jobTimeoutCountMap.get(jobId);
-        if (jobTimeoutCount!=null && jobTimeoutCount.get() > 10) {
+        if (jobTimeoutCount != null && jobTimeoutCount.get() > 10) {
             triggerPool = slowTriggerPool;
         }
 
         // trigger
         triggerPool.execute(() -> {
-
             long start = System.currentTimeMillis();
-
             try {
-                // do trigger
+                // 执行
                 XxlJobTrigger.trigger(jobId, triggerType, failRetryCount, executorShardingParam, executorParam, addressList);
             } catch (Exception e) {
                 logger.error(e.getMessage(), e);
             } finally {
 
                 // check timeout-count-map
-                long minTim_now = System.currentTimeMillis()/60000;
-                if (minTim != minTim_now) {
-                    minTim = minTim_now;
+                long minTimNow = System.currentTimeMillis() / 60000;
+                // 这里的目的就是为了判断是不是同1分钟
+                if (minTim != minTimNow) {
+                    // 不是同1分钟内，那么就刷新minTim,将jobTimeoutCountMap清空
+                    minTim = minTimNow;
                     jobTimeoutCountMap.clear();
                 }
-
-                // incr timeout-count-map
-                long cost = System.currentTimeMillis()-start;
-                if (cost > 500) {       // ob-timeout threshold 500ms
+                // 用来统计作业执行时间
+                long cost = System.currentTimeMillis() - start;
+                if (cost > 500) {
+                    // 如果执行时间大于500毫秒,则添加到jobTimeoutCountMap,计数+1
+                    // jobTimeoutCountMap中的jobId对应的计数如果超过10次(1分钟之内),那么就是使用 slowTriggerPool线程池 来执行任务
                     AtomicInteger timeoutCount = jobTimeoutCountMap.putIfAbsent(jobId, new AtomicInteger(1));
                     if (timeoutCount != null) {
                         timeoutCount.incrementAndGet();
@@ -120,7 +124,6 @@ public class JobTriggerPoolHelper {
     }
 
 
-
     // ---------------------- helper ----------------------
 
     private static JobTriggerPoolHelper helper = new JobTriggerPoolHelper();
@@ -128,6 +131,7 @@ public class JobTriggerPoolHelper {
     public static void toStart() {
         helper.start();
     }
+
     public static void toStop() {
         helper.stop();
     }
@@ -135,13 +139,11 @@ public class JobTriggerPoolHelper {
     /**
      * @param jobId
      * @param triggerType
-     * @param failRetryCount
-     * 			>=0: use this param
-     * 			<0: use param from job info config
+     * @param failRetryCount        >=0: use this param
+     *                              <0: use param from job info config
      * @param executorShardingParam
-     * @param executorParam
-     *          null: use job param
-     *          not null: cover job param
+     * @param executorParam         null: use job param
+     *                              not null: cover job param
      */
     public static void trigger(int jobId, TriggerTypeEnum triggerType, int failRetryCount, String executorShardingParam, String executorParam, String addressList) {
         helper.addTrigger(jobId, triggerType, failRetryCount, executorShardingParam, executorParam, addressList);

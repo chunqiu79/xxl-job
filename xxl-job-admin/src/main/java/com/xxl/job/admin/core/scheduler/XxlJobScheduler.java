@@ -89,24 +89,23 @@ public class XxlJobScheduler {
     }
 
     // ---------------------- executor-client ----------------------
-    private static ConcurrentMap<String, ExecutorBiz> executorBizRepository = new ConcurrentHashMap<String, ExecutorBiz>();
+    /**
+     * 缓存,用来存储 执行器地址 和 执行器的相关信息 映射关系
+     * key-执行器地址    value-执行器的相关信息
+     */
+    private static ConcurrentMap<String, ExecutorBiz> executorBizRepository = new ConcurrentHashMap<>();
 
-    public static ExecutorBiz getExecutorBiz(String address) throws Exception {
-        // valid
-        if (address == null || address.trim().length() == 0) {
+    public static ExecutorBiz getExecutorBiz(String address) {
+        if (address == null || address.trim().isEmpty()) {
             return null;
         }
-
-        // load-cache
         address = address.trim();
         ExecutorBiz executorBiz = executorBizRepository.get(address);
         if (executorBiz != null) {
             return executorBiz;
         }
-
-        // set-cache
+        // 设置缓存(这里创建的是ExecutorBizClient)
         executorBiz = new ExecutorBizClient(address, XxlJobAdminConfig.getAdminConfig().getAccessToken());
-
         executorBizRepository.put(address, executorBiz);
         return executorBiz;
     }

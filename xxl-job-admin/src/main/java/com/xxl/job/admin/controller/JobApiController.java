@@ -28,13 +28,6 @@ public class JobApiController {
     @Resource
     private AdminBiz adminBiz;
 
-    /**
-     * api
-     *
-     * @param uri
-     * @param data
-     * @return
-     */
     @RequestMapping("/{uri}")
     @ResponseBody
     @PermissionLimit(limit=false)
@@ -42,13 +35,13 @@ public class JobApiController {
 
         // valid
         if (!"POST".equalsIgnoreCase(request.getMethod())) {
-            return new ReturnT<String>(ReturnT.FAIL_CODE, "invalid request, HttpMethod not support.");
+            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, HttpMethod not support.");
         }
-        if (uri==null || uri.trim().length()==0) {
-            return new ReturnT<String>(ReturnT.FAIL_CODE, "invalid request, uri-mapping empty.");
+        if (uri==null || uri.trim().isEmpty()) {
+            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, uri-mapping empty.");
         }
         if (XxlJobAdminConfig.getAdminConfig().getAccessToken()!=null
-                && XxlJobAdminConfig.getAdminConfig().getAccessToken().trim().length()>0
+                && !XxlJobAdminConfig.getAdminConfig().getAccessToken().trim().isEmpty()
                 && !XxlJobAdminConfig.getAdminConfig().getAccessToken().equals(request.getHeader(XxlJobRemotingUtil.XXL_JOB_ACCESS_TOKEN))) {
             return new ReturnT<String>(ReturnT.FAIL_CODE, "The access token is wrong.");
         }
@@ -58,13 +51,16 @@ public class JobApiController {
             List<HandleCallbackParam> callbackParamList = GsonTool.fromJson(data, List.class, HandleCallbackParam.class);
             return adminBiz.callback(callbackParamList);
         } else if ("registry".equals(uri)) {
+            // 调度客户端启动的时候就会调用这个逻辑
+            // 调度客户端注册
             RegistryParam registryParam = GsonTool.fromJson(data, RegistryParam.class);
+            // 这里注入的adminBiz是AdminBizImpl
             return adminBiz.registry(registryParam);
         } else if ("registryRemove".equals(uri)) {
             RegistryParam registryParam = GsonTool.fromJson(data, RegistryParam.class);
             return adminBiz.registryRemove(registryParam);
         } else {
-            return new ReturnT<String>(ReturnT.FAIL_CODE, "invalid request, uri-mapping("+ uri +") not found.");
+            return new ReturnT<>(ReturnT.FAIL_CODE, "invalid request, uri-mapping(" + uri + ") not found.");
         }
 
     }

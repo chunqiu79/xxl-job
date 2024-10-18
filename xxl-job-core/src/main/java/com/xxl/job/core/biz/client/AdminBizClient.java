@@ -20,9 +20,9 @@ public class AdminBizClient implements AdminBiz {
     public AdminBizClient(String addressUrl, String accessToken) {
         this.addressUrl = addressUrl;
         this.accessToken = accessToken;
-
         // valid
         if (!this.addressUrl.endsWith("/")) {
+            // 其实就是强制将使addressUrl以 "/" 结尾
             this.addressUrl = this.addressUrl + "/";
         }
     }
@@ -39,6 +39,7 @@ public class AdminBizClient implements AdminBiz {
 
     @Override
     public ReturnT<String> registry(RegistryParam registryParam) {
+        // 调用admin服务端的 api/registry
         return XxlJobRemotingUtil.postBody(addressUrl + "api/registry", accessToken, timeout, registryParam, String.class);
     }
 

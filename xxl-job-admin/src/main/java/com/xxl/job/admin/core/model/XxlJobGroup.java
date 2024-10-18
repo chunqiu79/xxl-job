@@ -6,7 +6,7 @@ import java.util.Date;
 import java.util.List;
 
 /**
- * Created by xuxueli on 16/9/30.
+ * xxl_job_group 表对应的记录
  */
 public class XxlJobGroup {
 
@@ -25,6 +25,7 @@ public class XxlJobGroup {
 
     /**
      * 执行器地址列表，多地址逗号分隔
+     * 其实就是客户端地址
      */
     private String addressList;
     private Date updateTime;

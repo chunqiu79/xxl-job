@@ -19,16 +19,14 @@ import java.util.Map;
 
 
 /**
- * xxl-job executor (for spring)
- *
- * @author xuxueli 2018-11-01 09:24:52
+ * 客户端创建这个bean即可
  */
 public class XxlJobSpringExecutor extends XxlJobExecutor implements ApplicationContextAware, SmartInitializingSingleton, DisposableBean {
     private static final Logger logger = LoggerFactory.getLogger(XxlJobSpringExecutor.class);
 
 
     /**
-     * 所有bean初始化之后调用
+     * 所有bean初始化之后自动调用
      */
     @Override
     public void afterSingletonsInstantiated() {
@@ -41,13 +39,17 @@ public class XxlJobSpringExecutor extends XxlJobExecutor implements ApplicationC
 
         // super start
         try {
+            // start
             super.start();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    // destroy
+    /**
+     * bean销毁的时候会调用
+     * 其实就是客户端注销的时候会调用
+     */
     @Override
     public void destroy() {
         super.destroy();
@@ -68,7 +70,7 @@ public class XxlJobSpringExecutor extends XxlJobExecutor implements ApplicationC
                     new MethodIntrospector.MetadataLookup<XxlJob>() {
                         @Override
                         public XxlJob inspect(Method method) {
-                            // 读取注解
+                            // 读取@XxlJob注解
                             return AnnotatedElementUtils.findMergedAnnotation(method, XxlJob.class);
                         }
                     });
@@ -117,7 +119,8 @@ public class XxlJobSpringExecutor extends XxlJobExecutor implements ApplicationC
                     }
                 }
 
-                // registry jobhandler
+                // 添加到map中
+                // key-@XxlJob注解的value属性
                 registJobHandler(name, new MethodJobHandler(bean, executeMethod, initMethod, destroyMethod));
             }
         }

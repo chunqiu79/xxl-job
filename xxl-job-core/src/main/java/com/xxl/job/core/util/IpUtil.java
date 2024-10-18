@@ -181,6 +181,9 @@ public class IpUtil {
         return getIpPort(ip, port);
     }
 
+    /**
+     * ip + ":" + port
+     */
     public static String getIpPort(String ip, int port){
         if (ip==null) {
             return null;

@@ -1,6 +1,5 @@
 package com.xxl.job.admin.controller;
 
-import com.xxl.job.admin.core.cron.CronExpression;
 import com.xxl.job.admin.core.exception.XxlJobException;
 import com.xxl.job.admin.core.model.XxlJobGroup;
 import com.xxl.job.admin.core.model.XxlJobInfo;
@@ -29,7 +28,6 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.text.ParseException;
 import java.util.*;
 
 /**
@@ -136,16 +134,19 @@ public class JobInfoController {
 	public ReturnT<String> start(int id) {
 		return xxlJobService.start(id);
 	}
-	
+
+	/**
+	 * 页面点击执行任务
+	 * @param id				作业id
+	 * @param executorParam		任务参数
+	 * @param addressList		机器地址列表
+	 */
 	@RequestMapping("/trigger")
 	@ResponseBody
-	//@PermissionLimit(limit = false)
 	public ReturnT<String> triggerJob(int id, String executorParam, String addressList) {
-		// force cover job param
 		if (executorParam == null) {
 			executorParam = "";
 		}
-
 		JobTriggerPoolHelper.trigger(id, TriggerTypeEnum.MANUAL, -1, null, executorParam, addressList);
 		return ReturnT.SUCCESS;
 	}

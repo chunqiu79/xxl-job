@@ -75,6 +75,7 @@ public class XxlJobExecutor {
         XxlJobFileAppender.initLogPath(logPath);
 
         // init invoker, admin-client
+        // 初始化-设置客户端需要连接的admin地址
         initAdminBizList(adminAddresses, accessToken);
 
 
@@ -85,11 +86,17 @@ public class XxlJobExecutor {
         TriggerCallbackThread.getInstance().start();
 
         // init executor-server
+        // 初始化-内部会将客户端信息自动注册
         initEmbedServer(address, ip, port, appname, accessToken);
     }
 
+    /**
+     * 客户端注销逻辑
+     */
     public void destroy() {
         // destroy executor-server
+
+        //
         stopEmbedServer();
 
         // destroy jobThreadRepository
@@ -120,17 +127,17 @@ public class XxlJobExecutor {
 
 
     // ---------------------- admin-client (rpc invoker) ----------------------
+    // 调度的admin地址
     private static List<AdminBiz> adminBizList;
 
-    private void initAdminBizList(String adminAddresses, String accessToken) throws Exception {
-        if (adminAddresses != null && adminAddresses.trim().length() > 0) {
+    private void initAdminBizList(String adminAddresses, String accessToken) {
+        if (adminAddresses != null && !adminAddresses.trim().isEmpty()) {
             for (String address : adminAddresses.trim().split(",")) {
-                if (address != null && address.trim().length() > 0) {
-
+                if (address != null && !address.trim().isEmpty()) {
+                    // 这里创建的是AdminBizClient
                     AdminBiz adminBiz = new AdminBizClient(address.trim(), accessToken);
-
                     if (adminBizList == null) {
-                        adminBizList = new ArrayList<AdminBiz>();
+                        adminBizList = new ArrayList<>();
                     }
                     adminBizList.add(adminBiz);
                 }
@@ -145,26 +152,29 @@ public class XxlJobExecutor {
     // ---------------------- executor-server (rpc provider) ----------------------
     private EmbedServer embedServer = null;
 
-    private void initEmbedServer(String address, String ip, int port, String appname, String accessToken) throws Exception {
+    private void initEmbedServer(String address, String ip, int port, String appName, String accessToken) throws Exception {
 
-        // fill ip port
+        // 客户端端口默认就是9999
         port = port > 0 ? port : NetUtil.findAvailablePort(9999);
-        ip = (ip != null && ip.trim().length() > 0) ? ip : IpUtil.getIp();
+        ip = (ip != null && !ip.trim().isEmpty()) ? ip : IpUtil.getIp();
 
         // generate address
-        if (address == null || address.trim().length() == 0) {
-            String ip_port_address = IpUtil.getIpPort(ip, port);   // registry-address：default use address to registry , otherwise use ip:port if address is null
-            address = "http://{ip_port}/".replace("{ip_port}", ip_port_address);
+        if (address == null || address.trim().isEmpty()) {
+            // ip + ":" + port
+            String ipPortAddress = IpUtil.getIpPort(ip, port);
+            // address = http://${ipPortAddress}/
+            address = "http://{ip_port}/".replace("{ip_port}", ipPortAddress);
         }
 
         // accessToken
-        if (accessToken == null || accessToken.trim().length() == 0) {
+        if (accessToken == null || accessToken.trim().isEmpty()) {
             logger.warn(">>>>>>>>>>> xxl-job accessToken is empty. To ensure system security, please set the accessToken.");
         }
 
         // start
         embedServer = new EmbedServer();
-        embedServer.start(address, port, appname, accessToken);
+        // 创建客户端和服务端之间的连接
+        embedServer.start(address, port, appName, accessToken);
     }
 
     private void stopEmbedServer() {
@@ -193,12 +203,13 @@ public class XxlJobExecutor {
 
 
     // ---------------------- job thread repository ----------------------
-    private static ConcurrentMap<Integer, JobThread> jobThreadRepository = new ConcurrentHashMap<Integer, JobThread>();
+    private static final ConcurrentMap<Integer, JobThread> jobThreadRepository = new ConcurrentHashMap<>();
 
     public static JobThread registJobThread(int jobId, IJobHandler handler, String removeOldReason) {
+        // TODO: 2024/8/9 这里为啥不创建1个线程池？
         JobThread newJobThread = new JobThread(jobId, handler);
         newJobThread.start();
-        logger.info(">>>>>>>>>>> xxl-job regist JobThread success, jobId:{}, handler:{}", new Object[]{jobId, handler});
+        logger.info(">>>>>>>>>>> xxl-job registry JobThread success, jobId:{}, handler:{}", jobId, handler);
 
         JobThread oldJobThread = jobThreadRepository.put(jobId, newJobThread);    // putIfAbsent | oh my god, map's put method return the old value!!!
         if (oldJobThread != null) {
@@ -221,8 +232,7 @@ public class XxlJobExecutor {
     }
 
     public static JobThread loadJobThread(int jobId) {
-        JobThread jobThread = jobThreadRepository.get(jobId);
-        return jobThread;
+        return jobThreadRepository.get(jobId);
     }
 
 }

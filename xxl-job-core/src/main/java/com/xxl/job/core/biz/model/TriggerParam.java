@@ -10,6 +10,9 @@ public class TriggerParam implements Serializable{
 
     private int jobId;
 
+    /**
+     * XxlJob注解 中对应的value值
+     */
     private String executorHandler;
     private String executorParams;
     private String executorBlockStrategy;

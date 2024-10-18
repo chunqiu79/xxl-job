@@ -3,15 +3,19 @@ package com.xxl.job.admin.core.model;
 import java.util.Date;
 
 /**
- * xxl-job info
- *
- * @author xuxueli  2016-1-12 18:25:49
+ * xxl_job_log 表对应的记录
  */
 public class XxlJobInfo {
-	
-	private int id;				// 主键ID
-	
-	private int jobGroup;		// 执行器主键ID
+
+	/**
+	 * id
+	 */
+	private int id;
+	/**
+	 * xxl_job_group 中的id
+	 * 其实应该叫jobGroupId
+	 */
+	private int jobGroup;
 	private String jobDesc;
 	
 	private Date addTime;
@@ -29,7 +33,10 @@ public class XxlJobInfo {
 	private String executorParam;		    // 执行器，任务参数
 	private String executorBlockStrategy;	// 阻塞处理策略
 	private int executorTimeout;     		// 任务执行超时时间，单位秒
-	private int executorFailRetryCount;		// 失败重试次数
+	/**
+	 * 失败重试次数
+	 */
+	private int executorFailRetryCount;
 	
 	private String glueType;		// GLUE类型	#com.xxl.job.core.glue.GlueTypeEnum
 	private String glueSource;		// GLUE源代码
